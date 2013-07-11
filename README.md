@@ -4,7 +4,7 @@ It is the firware of dsPIC microcontroller which is used by <a href="https://git
 
 <h2>
 </a>Build Instructions</h2>
-To build for dsPIC33FJ128GP802 Mplab X project must be configured to use this dsPIC and the following defines in <code>definitions.h</code> must be set:
+To build for dsPIC33FJ128GP802 Mplab X project must be configured to use this dsPIC and XC16 compiler. The following defines in <code>definitions.h</code> must be set:
 
 <li><code>#define DEBUG_ISIS          FALSE</code>
 
