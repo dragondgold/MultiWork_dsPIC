@@ -10,28 +10,17 @@
     #include    <p33FJ32MC204.h>
 #endif
 
-#if DEBUG_ISIS == FALSE && TEST_BT == FALSE
-    /* Definiciones */
-    #define     F40MHz      0
-    #define     F20MHz      1
-    #define     F10MHz      2
-    #define     F4MHz       3
-    #define     F400KHz     4
-    #define     F2KHz       5
-    #define     F10Hz       6
-#else
-    /* Definiciones */
-    #define     F40MHz      'A'
-    #define     F20MHz      'S'
-    #define     F10MHz      'D'
-    #define     F4MHz       'F'
-    #define     F400KHz     'G'
-    #define     F2KHz       'H'
-    #define     F10Hz       'J'
+/* Definiciones */
+#define     F40MHz      'A'
+#define     F20MHz      'S'
+#define     F10MHz      'D'
+#define     F4MHz       'F'
+#define     F400KHz     'G'
+#define     F2KHz       'H'
+#define     F10Hz       'J'
 
-    #define     noTrigger       'K'
-    #define     simpleTrigger   'L'
-#endif
+#define     noTrigger       'N'
+#define     simpleTrigger   'S'
 
 #define bitTest(data, n) (data & (1 << n))
 
@@ -99,10 +88,9 @@ void vLogicAnalizer(void){
         samplingFrequency = mReadUART1();   // Obtengo la frecuencia de muestreo
         triggerType = mReadUART1();         // Obtengo el tipo de trigger
         channelMask = mReadUART1();         // Obtengo la máscara
-        // La parte alta de la máscara concuerda con la parte alta del bus
-        // Siendo RB15 (CN11) el MSB
         
         CNEN1 = CNEN2 = 0;
+        if(channelMask == 0) triggerType = noTrigger;
 
         // De acuerdo al bit seteado en el Mask detecto o no el cambio de estado
         // en el pin correspondiente
@@ -178,6 +166,7 @@ void vLogicAnalizer(void){
             channelMask = mReadUART1();         // Obtengo la máscara
 
             CNEN1 = CNEN2 = 0;
+            if(channelMask == 0) triggerType = noTrigger;
 
             // De acuerdo al bit seteado en el Mask detecto o no el cambio de estado
             // en el pin correspondiente

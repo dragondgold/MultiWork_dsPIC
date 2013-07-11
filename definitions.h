@@ -2,7 +2,7 @@
 #define BaudRate            9600
 
 #define START_BYTE          'S'
-#define BUFFER_SIZE         1000
+#define BUFFER_SIZE         16000
 #define ACK                 0x06
 
 #define TRUE                1
@@ -20,5 +20,5 @@
 #define FlancoSubida        0
 #define FlancoBajada        1
 
-#define DEBUG_ISIS          TRUE
-#define TEST_BT             TRUE
+#define DEBUG_ISIS          FALSE
+#define TEST_BT             FALSE
