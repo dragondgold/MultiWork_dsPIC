@@ -142,18 +142,10 @@ int main (void) {
     __delay_ms(10);             // Pequeño delay de arranque para estabilizacion
 
     printf(" ");                // Debo enviar algo por printf() para que el TX
-                                // comienze a funcionar, no se si es un bug
-    TRISBbits.TRISB5 = 0;
-    PORTBbits.RB5 = 1;
-    __delay_ms(500);
-    PORTBbits.RB5 = 0;
-    __delay_ms(500);
-    PORTBbits.RB5 = 1;
-    __delay_ms(500);
-    PORTBbits.RB5 = 0;
-
+                                // comienze a funcionar, de otro modo el primer byte no se envia nunca,
+                                // no se si es un bug
     while(TRUE){
-        //Idle();                             // El PIC se mantiene en modo Idle esperando un dato del UART
+        //Idle();                           // El PIC se mantiene en modo Idle esperando un dato del UART
         switch(mode){                       // Eligo el modo que se envio a traves del UART
             case FRECUENCIMETER:
                 vFrecuencimetro();

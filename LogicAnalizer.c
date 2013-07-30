@@ -80,6 +80,10 @@ void vLogicAnalizer(void){
     prevSettings.IPL = SRbits.IPL;          // Guardo el estado de los 3 bits IPL
     SRbits.IPL = 0b111;                     // Deshabilito interrupciones
     TRISB = 0xFF00;                         // Parte alta del puerto B como entrada
+
+    TRISAbits.TRISA1 = 0;                   // Pin de dirección del buffer
+    PORTAbits.RA1 = 0;                      // Puerto B del buffer como entrada y A como salida (A <- B)
+
     CNPU1 = CNPU2 = 0;                      // Deshabilito pull-ups
 
     WriteUART1(LOGIC_ANALIZER);             // Envío el modo
