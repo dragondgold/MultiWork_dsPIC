@@ -9,12 +9,11 @@
 #include "definitions.h"
 #include "mylibs.h"
 /* Includes generales */
-#include <libpic30.h>               // Libreria para delays
+#include <libpic30.h>     // Libreria para delays
 #include <stdio.h>
 #include <stdlib.h>
 #include <uart.h>
 /* Cabeceras de funciones */
-#include "BluetoothInterface.h"
 #include "LogicAnalizer.h"
 #include "Frecuencimetro.h"
 
@@ -81,18 +80,48 @@
 
 /* RAM contigua para buffer */
 __attribute__((far,aligned)) unsigned char Buffer[BUFFER_SIZE];
-volatile unsigned int mode = NO_MODE;           // Modo para el USART
+volatile unsigned int mode = NO_MODE;       // Modo para el USART
+
+void debugUARTInit (void){
+    #if DEBUG_ISIS == FALSE && UART2_DEBUG == TRUE
+    // Configuración UART 2
+    U2MODEbits.USIDL = 1;       // Continúa operando en modo IDLE
+    U2MODEbits.IREN = 0;        // IrDa deshabilitado
+    U2MODEbits.RTSMD = 1;       // Pin RTS no se utiliza
+    U2MODEbits.UEN = 0b00;      // Pines RTS y CTS no se usan, solo TX y RX
+    U2MODEbits.WAKE = 1;        // UART habilitado en sleep
+    U2MODEbits.LPBACK = 0;      // No usa modo Loop-back
+    U2MODEbits.ABAUD = 0;       // Auto-Baud apagado
+    U2MODEbits.BRGH = SPEED_MODE;
+    U2BRG = BRGVal;
+    U2MODEbits.PDSEL = 0b00;    // 8 bits no parity
+    U2MODEbits.STSEL = 0;       // 1 bit de stop
+
+    U2STAbits.UTXINV = 0;       // Estado IDLE a 1
+    U2STAbits.UTXISEL0 = 0;     // Deshabilitada interrupción por envío
+    U2STAbits.UTXISEL1 = 0;
+    U2STAbits.UTXEN = 1;        // Pin TX habilitado
+    U2STAbits.URXISEL = 0b00;   // Con solo un caracter la interrupcion por recepcion es lanzada
+    U2STAbits.ADDEN = 0;        // Address mode apagado
+    U2STAbits.URXISEL = 0b00;
+
+    U2MODEbits.UARTEN = 1;      // Módulo UART habilitado
+    #endif
+}
 
 /**
  * Interrupcion de recepcion de dato en el UART 1 que es el que se comunica
  * con el modulo bluetooth
  */
 void __attribute__((interrupt, no_auto_psv)) _U1RXInterrupt(void){
-    if(DataRdyUART1()){         // Compruebo por las dudas de que en verdad halla un dato
-        mode = ReadUART1();     // Leo el dato desde el UART
-    }
-    U1STAbits.OERR = 0;
     IFS0bits.U1RXIF = 0;
+
+    // Compruebo por las dudas de que en verdad halla un dato
+    if(DataRdyUART1() && mode == NO_MODE){
+        mode = ReadUART1();      // Leo el dato desde el UART
+    }
+
+    if(U1STAbits.OERR) U1STAbits.OERR = 0;
 }
 
 int main (void) {
@@ -103,7 +132,7 @@ int main (void) {
     CLKDIVbits.PLLPRE  = 0;   		// N2=2
     OSCTUN             = 0;   		// Tune FRC oscillator, if FRC is used
     RCONbits.SWDTEN = 0;    	  	// WDT desactivado
-    //while(OSCCONbits.LOCK!=1);	// Espero que se estabilize el PLL
+    while(!OSCCONbits.LOCK);            // Espero que se estabilize el PLL
 
     __IOUNLOCK
     #if DEBUG_ISIS == TRUE
@@ -113,7 +142,15 @@ int main (void) {
         RPINR18bits.U1RXR = 0b110;          // RX en RP6
         RPOR3bits.RP7R = 0b00011;           // TX en RP7
     #endif
+    #if UART2_DEBUG == TRUE
+        RPOR0bits.RP0R = 0b00101;           // TX2 en RP0
+        RPINR19bits.U2RXR = 1;              // RX2 en RP1
+    #endif
     __IOLOCK
+
+    TRISAbits.TRISA1 = 0;       // Pin de dirección del buffer
+    PORTAbits.RA1 = 0;          // Puerto B del buffer como entrada y A como salida (A <- B)
+    PORTB = 0xFF00;             // Parte del buffer como entrada para evitar problemas
 
     // Configuración UART 1
     U1MODEbits.USIDL = 1;       // Continúa operando en modo IDLE
@@ -128,32 +165,41 @@ int main (void) {
     U1MODEbits.PDSEL = 0b00;    // 8 bits no parity
     U1MODEbits.STSEL = 0;       // 1 bit de stop
 
+    U1STAbits.UTXINV = 0;       // Estado IDLE a 1
     U1STAbits.UTXISEL0 = 0;     // Deshabilitada interrupción por envío
     U1STAbits.UTXISEL1 = 0;
     U1STAbits.UTXEN = 1;        // Pin TX habilitado
     U1STAbits.URXISEL = 0b00;   // Con solo un caracter la interrupcion por recepcion es lanzada
     U1STAbits.ADDEN = 0;        // Address mode apagado
 
-    IEC0bits.U1RXIE = 1;        // Activo interrupción del UART (al parecer la función no lo hace)
     IFS0bits.U1RXIF = 0;        // Borro el flag de interrupción
     U1STAbits.OERR = 0;         // Borro el flag de error
+    IEC0bits.U1RXIE = 1;        // Activo interrupción del UART
     U1MODEbits.UARTEN = 1;      // Módulo UART habilitado
 
-    __delay_ms(10);             // Pequeño delay de arranque para estabilizacion
+    debugUARTInit();
+    __delay_ms(50);             // Pequeño delay de arranque para estabilizacion
 
-    printf(" ");                // Debo enviar algo por printf() para que el TX
-                                // comienze a funcionar, de otro modo el primer byte no se envia nunca,
-                                // no se si es un bug
+    __C30_UART = 1;
+    printf(" ");                // Debo enviar algo por printf() para que el UART
+                                // comienze a funcionar, de otro modo el UART jamas inicia
+    __C30_UART = 2;
+    printf(" ");
+
+    debug("Debugger Iniciado UART 2");
+
     while(TRUE){
-        //Idle();                           // El PIC se mantiene en modo Idle esperando un dato del UART
-        switch(mode){                       // Eligo el modo que se envio a traves del UART
+        Idle();                 // El PIC se mantiene en modo Idle esperando un dato del UART
+        __delay_ms(10);         // Retardo para que el PIC entre a la interrupción y lea el modo
+        printNumericDebug("\r\nDespertado de Idle modo: ", mode);
+        switch(mode){
             case FRECUENCIMETER:
-                vFrecuencimetro();
+                //vFrecuencimetro();
                 mode = NO_MODE;
                 break;
 
             case LC_METER:
-                vLC_Meter();
+                //vLC_Meter();
                 mode = NO_MODE;
                 break;
 
@@ -167,6 +213,5 @@ int main (void) {
                 break;
         }
     }
-
     return (EXIT_SUCCESS);
 }

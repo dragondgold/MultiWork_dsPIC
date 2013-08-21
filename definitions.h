@@ -21,4 +21,8 @@
 #define FlancoBajada        1
 
 #define DEBUG_ISIS          FALSE
-#define TEST_BT             FALSE
+#define UART2_DEBUG         FALSE
+
+#if DEBUG_ISIS == TRUE && UART2_DEBUG == TRUE
+    #error No se puede usar el debugger con el UART2 en la simulacion con ISIS Proteus
+#endif

@@ -2,14 +2,30 @@
 #define MYLIBS_H
 
 #include "definitions.h"
+#include "uart.h"
+#include "stdio.h"
+#include "stdlib.h"
+
+void float2str(int *buffer, float f);
+void printNumber(unsigned int number);
 
 /* Definiciones generales */
 // No permite cambios en Peripheral Pin Select
 #define __IOLOCK	__builtin_write_OSCCONL(OSCCON | 0x40);
 // Permite cambios en Peripheral Pin Select
 #define __IOUNLOCK	__builtin_write_OSCCONL(OSCCON & 0xDF);
+#define toggle(bit)     bit ^= 0x01;
 
-void float2str(int *buffer, float f);
+#if DEBUG_ISIS == FALSE && UART2_DEBUG == TRUE
+    // Macros para DEBUG por el UART2
+    #define debug(data)                   putsUART2((unsigned int *)data); while(BusyUART2());
+    #define printNumericDebug(data, x)    debug(data); printNumber(x); while(BusyUART2());
+    #define printCharDebug(data, x)       debug(data); putcUART2((char)x); while(BusyUART2());
+#else
+    #define debug(data)
+    #define printNumericDebug(data, x)
+    #define printCharDebug(data, x)
+#endif
 
 /**
  * Macro para el calculo de baudios automatico

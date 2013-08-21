@@ -8,6 +8,6 @@ To build for dsPIC33FJ128GP802 Mplab X project must be configured to use this ds
 
 <li><code>#define DEBUG_ISIS          FALSE</code>
 
-<li><code>#define TEST_BT               FALSE</code>
+<li><code>#define DEBUG_UART2         FALSE</code>
 
-The first define is used when using ISIS Proteus because dsPIC33FJ128GP802 is not in Proteus libraries. The second one is used also to test sending characters instead of raw data to select different options through the UART port. 
+The first define is used when using ISIS Proteus because dsPIC33FJ128GP802 is not in Proteus libraries. The second one is used to send debug data using UART2 module.
