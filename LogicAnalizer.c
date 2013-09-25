@@ -83,7 +83,8 @@ void vLogicAnalizer(void){
     TRISAbits.TRISA1 = 0;                   // Pin de dirección del buffer
     PORTAbits.RA1 = 0;                      // Puerto B del buffer como entrada y A como salida (A <- B)
     CNPU1 = CNPU2 = 0;                      // Deshabilito pull-ups
-    
+    CLKDIVbits.DOZEN = 0;                   // CPU a 40 MIPS
+
     disableUARTInt();
     writeUART1(LOGIC_ANALIZER);             // Envío el modo
 

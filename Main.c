@@ -109,6 +109,11 @@ void debugUARTInit (void){
     #endif
 }
 
+void dozenMode (void){
+    CLKDIVbits.DOZE = 4;    // Divido 40 MIPS por 16, CPU ejecuta a 2.5 MIPS
+    CLKDIVbits.DOZEN = 1;   // Activo modo Dozen
+}
+
 /**
  * Interrupcion de recepcion de dato en el UART 1 que es el que se comunica
  * con el modulo bluetooth
@@ -139,8 +144,10 @@ int main (void) {
         RPINR18bits.U1RXR = 0b11001;        // RX en RP25
         RPOR12bits.RP24R = 0b00011;         // TX en RP24
     #else
-        RPINR18bits.U1RXR = 0b110;          // RX en RP6
-        RPOR3bits.RP7R = 0b00011;           // TX en RP7
+        RPINR18bits.U1RXR = 7;              // RX en RP7
+        RPOR3bits.RP6R = 0b00011;           // TX en RP6
+        TRISBbits.TRISB2 = 1;               // RX para USB (RP2) (no se usa actualmente)
+        TRISBbits.TRISB3 = 1;               // TX para USB (RP3) (no se usa actualmente)
     #endif
     #if UART2_DEBUG == TRUE
         RPOR0bits.RP0R = 0b00101;           // TX2 en RP0
@@ -148,6 +155,7 @@ int main (void) {
     #endif
     __IOLOCK
 
+    Enable5VPower();            // Habilito los 5V del regulador Boost
     TRISAbits.TRISA1 = 0;       // Pin de dirección del buffer
     PORTAbits.RA1 = 0;          // Puerto B del buffer como entrada y A como salida (A <- B)
     PORTB = 0xFF00;             // Parte del buffer como entrada para evitar problemas
@@ -212,6 +220,7 @@ int main (void) {
                 mode = NO_MODE;
                 break;
         }
+        dozenMode();
     }
     return (EXIT_SUCCESS);
 }

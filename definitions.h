@@ -23,6 +23,9 @@
 #define DEBUG_ISIS          FALSE
 #define UART2_DEBUG         FALSE
 
+#define Disable5VPower      TRISAbits.TRISA0 = 0; LATAbits.LATA0 = 0;
+#define Enable5VPower       TRISAbits.TRISA0 = 1;
+
 #if DEBUG_ISIS == TRUE && UART2_DEBUG == TRUE
     #error No se puede usar el debugger con el UART2 en la simulacion con ISIS Proteus
 #endif
