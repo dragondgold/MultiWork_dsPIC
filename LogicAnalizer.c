@@ -2,6 +2,7 @@
 #include    "mylibs.h"
 #include    "definitions.h"
 #include    "RunLengthAlgorithm.h"
+#include    <crc.h>
 #include    <uart.h>
 #include    <libpic30.h>              
 #include    <stdlib.h>
@@ -77,6 +78,7 @@ void vLogicAnalizer(void){
     unsigned int triggerType;               // Tipo de trigger
     unsigned int samplingFrequency;         // Frecuencia de muestreo
     unsigned int channelMask;               // Máscara para filtrar los canales (un 1 en el canal que se desea el trigger, 0 de otro modo)
+    int CRC16;
 
     TRISB |= 0xFF00;                        // Parte alta del puerto B como entrada (hacemos una OR sino modificamos los pines
                                             // UART y deja de funcionar)
@@ -183,19 +185,29 @@ void vLogicAnalizer(void){
                 break;
         }
 
-        debug("\r\nSending data");
-        writeUART1(START_BYTE);             // Envío byte de Start
-        writeUART1(LOGIC_ANALIZER);         // Envío proveniencia del dato
+        // Calculo el CRC del buffer
+        CRC16 = CRC_Calc_ChecksumByte(Buffer, BUFFER_SIZE, 0);
 
-        // Envío el buffer comprimido
-        RLEncodeSendBuffer(Buffer, BUFFER_SIZE);
-        // Dos 0xFF indican la terminación
-        writeUART1(0xFF);
-        writeUART1(0xFF);
+        // Envío los datos mientras reciba que debo repetir la transmición
+        do{
+            debug("\r\nSending data");
+            writeUART1(START_BYTE);             // Envío byte de Start
+            writeUART1(LOGIC_ANALIZER);         // Envío proveniencia del dato
 
-        sleepWait();
-        keepGoing = mReadUART1();
-        printNumericDebug("\r\nKeepGoing recibido: ", keepGoing);
+            // Envío el buffer comprimido
+            RLEncodeSendBuffer(Buffer, BUFFER_SIZE);
+            // Dos 0xFF indican la terminación
+            writeUART1(0xFF);
+            writeUART1(0xFF);
+
+            // Envío los dos bytes del CRC16
+            writeUART1(CRC16 & 0xFF);           // LSB CRC16
+            writeUART1((CRC16 >> 8) & 0xFF);    // MSB CRC16
+
+            sleepWait();
+            keepGoing = mReadUART1();
+            printNumericDebug("\r\nKeepGoing recibido: ", keepGoing);
+        }while(keepGoing == 'R');
     }
     debug("\r\nSale de Analizador Logico");
     enableUARTInt();        // Habilito nuevamente las interrupciones UART
