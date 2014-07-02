@@ -1,7 +1,6 @@
 #ifndef DATASAMPLE_C
 #define DATASAMPLE_C
 
-#define FCY 40000000UL      // MIPS del PIC24
 #include <libpic30.h>       // Libreria para delays
 #include <uart.h>
 #include "definitions.h"
@@ -61,17 +60,6 @@ void vSample2KHz (unsigned char *Port, unsigned char *Buffer, int n){
     __delay_us(500);
     __asm__ volatile ("Loop2K:  nop");
 }
-
-/*
- __asm__ volatile ("mov.b    [w0],w4");      // Copio el valor del puerto
-__asm__ volatile ("and      w3,w4,w5");     // AND entre el valor del puerto y la máscara
-__asm__ volatile ("Trigger40MHz:");
-__asm__ volatile ("mov.b    [w0],w4");      // Copio el valor del puerto
-__asm__ volatile ("and      w3,w4,w6");     // Hago un AND entre el valor actual del puerto y la máscara y lo guardo en W6
-__asm__ volatile ("cpsne    w5,w6");        // Comparo entre el primer valor del puerto y el actual, salto si el primer valor
-                                            //  es distinto al de ahora, sino sigo
-__asm__ volatile ("goto     Trigger40MHz");
- */
 
 /*************************************************************************/
 /* Trigger simple, el trigger se analiza cada 125nS osea 8MHz            */

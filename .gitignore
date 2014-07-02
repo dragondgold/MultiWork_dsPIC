@@ -1,0 +1,4 @@
+build/
+dissasembly/
+dist/
+*.sbs

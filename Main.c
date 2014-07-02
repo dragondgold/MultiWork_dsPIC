@@ -18,7 +18,7 @@
 #include "Frecuencimetro.h"
 
 #if DEBUG_ISIS == TRUE
-    #include    <p33FJ32MC204.h>
+    // Usamos PIC33FJ32MC204
     // FBS
     #pragma config BWRP = WRPROTECT_OFF     // Boot Segment Write Protect (Boot Segment may be written)
     #pragma config BSS = NO_FLASH           // Boot Segment Program Flash Code Protection (No Boot program Flash segment)
@@ -45,7 +45,7 @@
     #pragma config ICS = PGD1               // Comm Channel Select (Communicate on PGC1/EMUC1 and PGD1/EMUD1)
     #pragma config JTAGEN = OFF             // JTAG Port Enable (JTAG is Disabled)
 #else
-    #include    <p33FJ128GP802.h>
+    // Usamos PIC33FJ128GP802
     // FBS
     #pragma config BWRP = WRPROTECT_OFF     // Boot Segment Write Protect (Boot Segment may be written)
     #pragma config BSS = NO_FLASH           // Boot Segment Program Flash Code Protection (No Boot program Flash segment)
@@ -79,53 +79,22 @@
 #endif
 
 /* RAM contigua para buffer */
-__attribute__((far,aligned)) unsigned char Buffer[BUFFER_SIZE];
+__attribute__((far,aligned)) unsigned char dataBuffer[BUFFER_SIZE];
 volatile unsigned int mode = NO_MODE;       // Modo para el USART
-
-void debugUARTInit (void){
-    #if DEBUG_ISIS == FALSE && UART2_DEBUG == TRUE
-    // Configuración UART 2
-    U2MODEbits.USIDL = 1;       // Continúa operando en modo IDLE
-    U2MODEbits.IREN = 0;        // IrDa deshabilitado
-    U2MODEbits.RTSMD = 1;       // Pin RTS no se utiliza
-    U2MODEbits.UEN = 0b00;      // Pines RTS y CTS no se usan, solo TX y RX
-    U2MODEbits.WAKE = 1;        // UART habilitado en sleep
-    U2MODEbits.LPBACK = 0;      // No usa modo Loop-back
-    U2MODEbits.ABAUD = 0;       // Auto-Baud apagado
-    U2MODEbits.BRGH = SPEED_MODE;
-    U2BRG = BRGVal;
-    U2MODEbits.PDSEL = 0b00;    // 8 bits no parity
-    U2MODEbits.STSEL = 0;       // 1 bit de stop
-
-    U2STAbits.UTXINV = 0;       // Estado IDLE a 1
-    U2STAbits.UTXISEL0 = 0;     // Deshabilitada interrupción por envío
-    U2STAbits.UTXISEL1 = 0;
-    U2STAbits.UTXEN = 1;        // Pin TX habilitado
-    U2STAbits.URXISEL = 0b00;   // Con solo un caracter la interrupcion por recepcion es lanzada
-    U2STAbits.ADDEN = 0;        // Address mode apagado
-    U2STAbits.URXISEL = 0b00;
-
-    U2MODEbits.UARTEN = 1;      // Módulo UART habilitado
-    #endif
-}
-
-void dozenMode (void){
-    CLKDIVbits.DOZE = 4;    // Divido 40 MIPS por 16, CPU ejecuta a 2.5 MIPS
-    CLKDIVbits.DOZEN = 1;   // Activo modo Dozen
-}
 
 /**
  * Interrupcion de recepcion de dato en el UART 1 que es el que se comunica
- * con el modulo bluetooth
+ * con el modulo Bluetooth
  */
 void __attribute__((interrupt, no_auto_psv)) _U1RXInterrupt(void){
     IFS0bits.U1RXIF = 0;
 
     // Compruebo por las dudas de que en verdad halla un dato
     if(DataRdyUART1() && mode == NO_MODE){
-        mode = ReadUART1();      // Leo el dato desde el UART
+        mode = ReadUART1();
     }
 
+    // Borro flag de error
     if(U1STAbits.OERR) U1STAbits.OERR = 0;
 }
 
@@ -144,57 +113,83 @@ int main (void) {
         RPINR18bits.U1RXR = 0b11001;        // RX en RP25
         RPOR12bits.RP24R = 0b00011;         // TX en RP24
     #else
-        RPINR18bits.U1RXR = 7;              // RX en RP7
-        RPOR3bits.RP6R = 0b00011;           // TX en RP6
-        TRISBbits.TRISB2 = 1;               // RX para USB (RP2) (no se usa actualmente)
-        TRISBbits.TRISB3 = 1;               // TX para USB (RP3) (no se usa actualmente)
-    #endif
-    #if UART2_DEBUG == TRUE
-        RPOR0bits.RP0R = 0b00101;           // TX2 en RP0
-        RPINR19bits.U2RXR = 1;              // RX2 en RP1
+        // UART 1 - Comunicación con Bluetooth
+        RPINR18bits.U1RXR = 6;              // RX en RP6
+        RPOR2bits.RP5R = 0b00011;           // TX en RP5
+
+        // UART 2 - Comunicación USB
+        RPINR19bits.U2RXR = 2;              // RX en RP2
+        RPOR1bits.RP3R = 0b00101;           // TX en RP3
     #endif
     __IOLOCK
 
-    Enable5VPower();            // Habilito los 5V del regulador Boost
-    TRISAbits.TRISA1 = 0;       // Pin de dirección del buffer
-    PORTAbits.RA1 = 0;          // Puerto B del buffer como entrada y A como salida (A <- B)
+    BUFFER_IO_TRIS = 0;         // Pin de dirección del buffer
+    BUFFER_IO_PIN = 0;          // Puerto B del buffer como entrada y A como salida (A <- B)
     PORTB = 0xFF00;             // Parte del buffer como entrada para evitar problemas
 
-    // Configuración UART 1
-    U1MODEbits.USIDL = 1;       // Continúa operando en modo IDLE
-    U1MODEbits.IREN = 0;        // IrDa deshabilitado
-    U1MODEbits.RTSMD = 1;       // Pin RTS no se utiliza
-    U1MODEbits.UEN = 0b00;      // Pines RTS y CTS no se usan, solo TX y RX
-    U1MODEbits.WAKE = 1;        // UART habilitado en sleep
-    U1MODEbits.LPBACK = 0;      // No usa modo Loop-back
-    U1MODEbits.ABAUD = 0;       // Auto-Baud apagado
-    U1MODEbits.BRGH = SPEED_MODE;
-    U1BRG = BRGVal;
-    U1MODEbits.PDSEL = 0b00;    // 8 bits no parity
-    U1MODEbits.STSEL = 0;       // 1 bit de stop
+    // Configuración UART 1 - Bluetooth
+    #define BAUD_RATE baudRateBT
+    U1MODEbits.USIDL = 1;           // Continúa operando en modo IDLE
+    U1MODEbits.IREN = 0;            // IrDa deshabilitado
+    U1MODEbits.RTSMD = 1;           // Pin RTS no se utiliza
+    U1MODEbits.UEN = 0b00;          // Pines RTS y CTS no se usan, solo TX y RX
+    U1MODEbits.WAKE = 1;            // UART habilitado en sleep
+    U1MODEbits.LPBACK = 0;          // No usa modo Loop-back
+    U1MODEbits.ABAUD = 0;           // Auto-Baud apagado
+    U1MODEbits.BRGH = getSpeedMode();
+    U1BRG = getBRGVal();
+    U1MODEbits.PDSEL = 0b00;        // 8 bits no parity
+    U1MODEbits.STSEL = 0;           // 1 bit de stop
 
-    U1STAbits.UTXINV = 0;       // Estado IDLE a 1
-    U1STAbits.UTXISEL0 = 0;     // Deshabilitada interrupción por envío
+    U1STAbits.UTXINV = 0;           // Estado IDLE a 1
+    U1STAbits.UTXISEL0 = 0;         // Deshabilitada interrupción por envío
     U1STAbits.UTXISEL1 = 0;
-    U1STAbits.UTXEN = 1;        // Pin TX habilitado
-    U1STAbits.URXISEL = 0b00;   // Con solo un caracter la interrupcion por recepcion es lanzada
-    U1STAbits.ADDEN = 0;        // Address mode apagado
+    U1STAbits.UTXEN = 1;            // Pin TX habilitado
+    U1STAbits.URXISEL = 0b00;       // Con solo un caracter la interrupcion por recepcion es lanzada
+    U1STAbits.ADDEN = 0;            // Address mode apagado
 
-    IFS0bits.U1RXIF = 0;        // Borro el flag de interrupción
-    U1STAbits.OERR = 0;         // Borro el flag de error
-    IEC0bits.U1RXIE = 1;        // Activo interrupción del UART
-    U1MODEbits.UARTEN = 1;      // Módulo UART habilitado
+    IFS0bits.U1RXIF = 0;            // Borro el flag de interrupción
+    U1STAbits.OERR = 0;             // Borro el flag de error
+    IEC0bits.U1RXIE = 1;            // Activo interrupción del UART
+    U1MODEbits.UARTEN = 1;          // Módulo UART habilitado
 
-    debugUARTInit();
-    __delay_ms(50);             // Pequeño delay de arranque para estabilizacion
+    // Configuración UART 2 - USB
+    #define BAUD_RATE baudRateUSB
+    U2MODEbits.USIDL = 1;           // Continúa operando en modo IDLE
+    U2MODEbits.IREN = 0;            // IrDa deshabilitado
+    U2MODEbits.RTSMD = 1;           // Pin RTS no se utiliza
+    U2MODEbits.UEN = 0b00;          // Pines RTS y CTS no se usan, solo TX y RX
+    U2MODEbits.WAKE = 1;            // UART habilitado en sleep
+    U2MODEbits.LPBACK = 0;          // No usa modo Loop-back
+    U2MODEbits.ABAUD = 0;           // Auto-Baud apagado
+    U2MODEbits.BRGH = getSpeedMode();
+    U2BRG = getBRGVal();
+    U2MODEbits.PDSEL = 0b00;        // 8 bits no parity
+    U2MODEbits.STSEL = 0;           // 1 bit de stop
 
+    U2STAbits.UTXINV = 0;           // Estado IDLE a 1
+    U2STAbits.UTXISEL0 = 0;         // Deshabilitada interrupción por envío
+    U2STAbits.UTXISEL1 = 0;
+    U2STAbits.UTXEN = 1;            // Pin TX habilitado
+    U2STAbits.URXISEL = 0b00;       // Con solo un caracter la interrupcion por recepcion es lanzada
+    U2STAbits.ADDEN = 0;            // Address mode apagado
+
+    IFS1bits.U2RXIF = 0;            // Borro el flag de interrupción
+    U2STAbits.OERR = 0;             // Borro el flag de error
+    IEC1bits.U2RXIE = 1;            // Activo interrupción del UART
+    U2MODEbits.UARTEN = 1;          // Módulo UART habilitado
+
+    __delay_ms(50);                 // Pequeño delay de arranque para estabilizacion
+
+    // Debo enviar algo por printf() para que el UART
+    // comienze a funcionar, de otro modo el UART jamas inicia, bug?
     __C30_UART = 1;
-    printf(" ");                // Debo enviar algo por printf() para que el UART
-                                // comienze a funcionar, de otro modo el UART jamas inicia
+    printf(" ");                    
+                                    
     __C30_UART = 2;
     printf(" ");
 
-    debug("Debugger Iniciado UART 2");
+    printDebug("Debugger Iniciado UART 2");
 
     while(TRUE){
         Idle();                 // El PIC se mantiene en modo Idle esperando un dato del UART
@@ -220,7 +215,6 @@ int main (void) {
                 mode = NO_MODE;
                 break;
         }
-        dozenMode();
     }
     return (EXIT_SUCCESS);
 }

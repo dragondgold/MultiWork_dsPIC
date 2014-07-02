@@ -5,21 +5,22 @@
 #include <stdio.h>
 #include <libpic30.h>
 
-//***************************************************************************//
-// Nombre:   vFrecuencimetro				                     //
-// Función:  Muestrea la frecuencia que ingresa por T2CK, se unen los Timer  //
-//           2 y 3 para formar uno de 32 bits                                //									//
-// Retorna:  Void                                                            //				                        //
-// Argumentos: Void                                                          //     														        //
-//***************************************************************************//
+#define bitTest(data, n) (data & (1 << n))
+#define enableUARTInt() U1MODEbits.WAKE = 1; IFS0bits.U1RXIF = 0; IEC0bits.U1RXIE = 1;
+#define disableUARTInt() IEC0bits.U1RXIE = 0;
+
+#define sleepWait() enableUARTInt(); Idle(); disableUARTInt();
+#define writeUART1(data) WriteUART1(data); while(BusyUART1());
+
+unsigned int mReadUART1 (void){
+    while(!DataRdyUART1());
+    return ReadUART1();
+}
+
 void vFrecuencimetro (void){
 
     unsigned int keepGoing = 1; // Determina si se debe continuar o no el muestreo
     unsigned long Frecuencia;   // Frecuencia
-    unsigned int IPL;
-
-    IPL = SRbits.IPL;           // Guardo el estado de las interrupciones
-    SRbits.IPL = 0b111;         // Deshabilito interrupciones
 
     WriteUART1(FRECUENCIMETER); // Envío el modo actual
 
@@ -35,6 +36,8 @@ void vFrecuencimetro (void){
     T2CONbits.TCKPS = 0b00;	// Preescaler 1:1
     T2CONbits.TCS   = 1;	// Clock externo
 
+    disableUARTInt();
+    
     while(keepGoing){
 
 	WriteTimer23(0);		// Reinicio timer
@@ -48,11 +51,9 @@ void vFrecuencimetro (void){
         WriteUART1(START_BYTE);         // Byte de START
         WriteUART1(FRECUENCIMETER);     // Proveniencia del dato
         WriteUART1(sizeof(unsigned long));  // Numero de bytes a enviar
-        printf("%lu", Frecuencia);      // Envío la frecuencia por el UART1
-        while(!DataRdyUART1());         // Espero a recibir un dato
-        keepGoing = ReadUART1();        // Sigo o no con el muestreo
-        
+        printf("%lu", Frecuencia);          // Envío la frecuencia por el UART1
+        sleepWait();                        // Espero a recibir un dato
+        keepGoing = mReadUART1();           // Sigo o no con el muestreo
     }
-
-    SRbits.IPL = IPL;       // Retorno el estado de las interrupciones
+    enableUARTInt();
 }

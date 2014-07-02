@@ -1,5 +1,9 @@
-#define FCY                 40000000UL      // MIPS para calculos de delay
-#define BaudRate            9600
+#define FCY                 40000000UL          // MIPS para calculos de delay
+#define baudRateBT          9600
+#define baudRateUSB         9600
+
+#define BUFFER_IO_PIN       PORTBbits.RB7
+#define BUFFER_IO_TRIS      TRISBbits.TRISB7
 
 #define START_BYTE          'S'
 #define BUFFER_SIZE         16000
@@ -8,7 +12,7 @@
 #define TRUE                1
 #define FALSE               0
 
-#define FRECUENCIMETER      0
+#define FRECUENCIMETER      'F'
 #define LC_METER            1
 #define LOGIC_ANALIZER      'L'
 #define VOLTMETER           3
@@ -23,8 +27,11 @@
 #define DEBUG_ISIS          FALSE
 #define UART2_DEBUG         FALSE
 
-#define Disable5VPower      TRISAbits.TRISA0 = 0; LATAbits.LATA0 = 0;
-#define Enable5VPower       TRISAbits.TRISA0 = 1;
+#if DEBUG_ISIS == FALSE
+    #include    <p33FJ128GP802.h>
+#else
+    #include    <p33FJ32MC204.h>
+#endif
 
 #if DEBUG_ISIS == TRUE && UART2_DEBUG == TRUE
     #error No se puede usar el debugger con el UART2 en la simulacion con ISIS Proteus
